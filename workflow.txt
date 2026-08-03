@@ -1,0 +1,34 @@
+Phase 1 — Explore & understand your real data (Days 1–3)
+Load the Excel export in pandas: pd.read_excel()
+Check what you actually have: date range, number of unique vehicles, how many rows, missing values, how consistent the location text format is
+Note the two timestamps (event time vs. time received) — check the typical gap between them, could be a useful feature later
+Write down the confirmed schema based on real columns (replaces your earlier "hypothesis" schema)
+Phase 2 — Clean & geocode (Days 4–7)
+Clean the location text column (strip inconsistent formatting, handle missing/vague entries)
+Geocode each unique location string to lat/lon using Nominatim (OpenStreetMap, free) — cache results so you don't re-geocode the same address twice
+Handle failures gracefully — some addresses won't geocode cleanly; decide on a fallback (skip row, use area-level centroid, etc.)
+End of this phase: a clean dataframe with event_time, vehicle_id, lat, lon for every historical report
+Phase 3 — Live ambulance data (Days 8–10)
+Ask whoever manages Falcon-i whether there's an API/export, not just the dashboard view
+If yes: pull live vehicle location + status (free/busy) directly
+If no: build a small mock "live fleet" generator for now, structured to match Falcon-i's fields (vehicle_id, region, location, status) — swap in real access later, same as your data plan all along
+Phase 4 — Core logic: nearest-vehicle ranking (Days 11–15)
+Write the haversine distance function: given one incident location + list of free vehicle locations, return distances
+Rank free vehicles by distance, return top 2–3
+Validate against history: for past incidents, check which vehicle was actually dispatched vs. what your ranking would have suggested — this is your evaluation story
+(Stretch goal, only if time allows) swap haversine for real road-distance/ETA using OSRM
+Phase 5 — FastAPI backend (Days 16–20)
+Learn just enough FastAPI (the minimal example we covered)
+Build one endpoint: /nearest-vehicle?incident_lat=&incident_lon= → returns ranked vehicle list
+Wire your Phase 4 logic into it
+Phase 6 — LLM API layer (Days 21–23)
+Set up a free LLM API (Gemini or Groq)
+Add a small endpoint/step that turns the ranked result into a readable dispatcher-facing sentence (e.g., "Nearest unit GH-527 is 1.2km away, ETA ~4 min")
+If your incident source ever has messy free-text (vs. the clean Excel locations), this is also where LLM-based location extraction would slot in
+Phase 7 — Frontend (Days 24–27)
+Build the Streamlit app: text/dropdown input for incident location, call your FastAPI endpoint, display results
+Add Folium map: incident marker (red), free vehicles (green), line to recommended dispatch
+Phase 8 — Polish & package (Days 28–30)
+Dockerize the FastAPI service
+Write up the project: problem, data, approach, evaluation against real historical dispatches, what you'd add next (road-distance ETA, severity-aware ranking, response-time forecasting)
+Clean the repo, anonymize any real location/vehicle data before anything goes public

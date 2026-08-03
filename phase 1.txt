@@ -1,0 +1,1 @@
+phase 1: the temp file i have created right now contains a python code that sorts the ignition on off from the excel file and uses pandas for it.
