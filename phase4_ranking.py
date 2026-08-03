@@ -14,17 +14,23 @@ def haversine_distance(lat1, lon1, lat2, lon2):
 
 
 def get_road_distance(lat1, lon1, lat2, lon2):
+    """Returns (distance_km, duration_min, route_coords) using OSRM, with actual road geometry."""
     url = f"http://router.project-osrm.org/route/v1/driving/{lon1},{lat1};{lon2},{lat2}"
+    params = {"overview": "full", "geometries": "geojson"}
     try:
-        response = requests.get(url, params={"overview": "false"}, timeout=5)
+        response = requests.get(url, params=params, timeout=5)
         data = response.json()
         if data.get("code") == "Ok":
             route = data["routes"][0]
-            return route["distance"] / 1000, route["duration"] / 60
-        return None, None
+            distance_km = route["distance"] / 1000
+            duration_min = route["duration"] / 60
+            # GeoJSON coordinates are [lon, lat] — need to flip to [lat, lon] for Folium
+            coords = [[lat, lon] for lon, lat in route["geometry"]["coordinates"]]
+            return distance_km, duration_min, coords
+        return None, None, None
     except Exception as e:
-        print(f"Error getting road distance: {e}")
-        return None, None
+        print(f"Error getting road route: {e}")
+        return None, None, None
 
 
 def rank_nearest_vehicles_two_stage(incident_lat, incident_lon, off_vehicles_df, top_n=3, prefilter_n=8):
@@ -36,7 +42,7 @@ def rank_nearest_vehicles_two_stage(incident_lat, incident_lon, off_vehicles_df,
     shortlist = df.sort_values("straight_line_km").head(prefilter_n).copy()
 
     def get_distance_with_fallback(row):
-        dist, eta = get_road_distance(incident_lat, incident_lon, row["off_lat"], row["off_lon"])
+        dist, eta, _ = get_road_distance(incident_lat, incident_lon, row["off_lat"], row["off_lon"])
         if dist is None:
             # OSRM unreachable — fall back to straight-line distance, rough ETA estimate
             dist = row["straight_line_km"]

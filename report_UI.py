@@ -4,7 +4,7 @@ from streamlit_folium import st_folium
 from phase3_llm_extraction import extract_and_clean_address
 from phase2_geocode import get_coords_with_fallback 
 from phase2_geocode import add_coordinates   # reuse your existing geocoding function
-from phase4_ranking import rank_nearest_vehicles_two_stage
+from phase4_ranking import get_road_distance, rank_nearest_vehicles_two_stage
 
 @st.cache_data
 def load_off_vehicles():
@@ -27,13 +27,19 @@ def build_dispatch_map(incident_lat, incident_lon, ranked_vehicles_df):
             icon=folium.Icon(color="green", icon="ambulance", prefix="fa")
         ).add_to(m)
 
-        folium.PolyLine(
-            locations=[[incident_lat, incident_lon], [row["off_lat"], row["off_lon"]]],
-            color="blue", weight=2, opacity=0.6
-        ).add_to(m)
+        # Get the actual road route for this vehicle -> incident
+        _, _, route_coords = get_road_distance(incident_lat, incident_lon, row["off_lat"], row["off_lon"])
+
+        if route_coords:
+            folium.PolyLine(locations=route_coords, color="blue", weight=3, opacity=0.7).add_to(m)
+        else:
+            # fallback to straight line if routing fails for this pair
+            folium.PolyLine(
+                locations=[[incident_lat, incident_lon], [row["off_lat"], row["off_lon"]]],
+                color="gray", weight=2, opacity=0.5, dash_array="5"
+            ).add_to(m)
 
     return m
-
 
 off_vehicles = load_off_vehicles()
 st.set_page_config(page_title="Emergency Call Form", layout="wide")
